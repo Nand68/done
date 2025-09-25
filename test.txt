@@ -1,0 +1,49 @@
+import express from "express";
+import fs from "fs";
+import path from "path";
+import puppeteer from "puppeteer";
+
+const router = express.Router();
+
+router.post("/save-invoice", async (req, res) => {
+  try {
+    const { html } = req.body; // HTML string sent from frontend
+    const filePath = path.join(__dirname, "../invoices", `invoice-${Date.now()}.pdf`);
+
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.pdf({ path: filePath, format: "A4" });
+    await browser.close();
+
+    res.json({ ok: true, path: filePath });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Failed to save invoice" });
+  }
+});
+
+export default router;
+
+
+
+
+const downloadButtonHandler = async () => {
+  const element = document.querySelector("#invoice") as HTMLElement | null;
+
+  if (element) {
+    // Convert invoice div to HTML string
+    const html = element.outerHTML;
+
+    // Send to backend to save in folder
+    await axios.post("http://localhost:4000/api/save-invoice", { html });
+
+    // Still let user download instantly (browser)
+    html2pdf(element, {
+      margin: 20,
+      filename: `transactions_${new Date().toISOString()}.pdf`,
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    });
+  }
+};
